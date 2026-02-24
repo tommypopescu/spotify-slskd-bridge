@@ -1,19 +1,24 @@
 {% extends "base.html" %}
 {% block content %}
 
+<!-- ========================== -->
+<!-- Exportify Section          -->
+<!-- ========================== -->
 <section style="margin:1rem 0; padding:1rem; border:1px solid #22304b; border-radius:.6rem; background:#0e1726">
+
   <h2 style="margin-top:0">Exportă playlist cu Exportify</h2>
+
   <p style="opacity:.85; margin-bottom:.5rem">
-    1) Deschide Exportify → Export CSV.<br>
-    2) Încarcă fișierul CSV mai jos.
+    1) Deschide Exportify și apasă <strong>Export</strong> → se descarcă un <code>.csv</code>.<br>
+    2) Încarcă mai jos fișierul CSV în aplicație.
   </p>
 
-  <!-- buton fallback vizibil mereu -->
+  <!-- Buton fallback (FUNCȚIONEAZĂ 100%) -->
   https://exportify.app/
     Deschide Exportify în tab nou
   </a>
 
-  <!-- iframe (nu va merge dacă site-ul blochează) -->
+  <!-- Iframe (poate fi blocat de X-Frame-Options – este NORMAL) -->
   <div style="margin-top:0.75rem;">
     https://exportify.app/
     </iframe>
@@ -21,16 +26,24 @@
 
   <hr style="border:none;border-top:1px solid #22304b;margin:1rem 0"/>
 
+  <!-- ========================== -->
+  <!-- Upload CSV Section -->     
+  <!-- ========================== -->
   /upload
     <label for="playlist_file" style="white-space:nowrap">CSV din Exportify:</label>
     <input type="file" id="playlist_file" name="playlist_file" accept=".csv,text/csv" />
-    <button type="submit" class="btn" style="padding:.5rem .8rem; border:1px solid #334155; border-radius:.5rem; background:#1f2a44; color:#e6eefc;">
+    <button type="submit"
+            style="padding:.5rem .8rem; border:1px solid #334155; border-radius:.5rem; background:#1f2a44; color:#e6eefc;">
       Încarcă playlist
     </button>
   </form>
+
 </section>
 
 
+<!-- ========================== -->
+<!-- Results / Errors           -->
+<!-- ========================== -->
 {% if error %}
   <div class="error">Eroare: {{ error }}</div>
 {% endif %}
@@ -39,6 +52,7 @@
 
   <div style="margin:.75rem 0;">
     <strong>Piese:</strong> {{ tracks|length }}
+
     <!-- Buton Download CSV -->
     <button onclick="downloadCurrentTracksAsCSV()"
             style="margin-left:1rem; padding:.35rem .6rem; border:1px solid #334155; border-radius:.4rem; background:#1f2a44; color:#e6eefc;">
@@ -46,6 +60,9 @@
     </button>
   </div>
 
+  <!-- ========================== -->
+  <!-- Tracklist                  -->
+  <!-- ========================== -->
   <ul class="tracklist">
     {% for t in tracks %}
     <li x-data="{ searched: false }"
@@ -56,9 +73,10 @@
         <span class="artists" style="opacity:.8">{{ t.artists }}</span>
       </div>
 
+      <!-- Before search -->
       <template x-if="!searched">
         <button
-          style="padding:.35rem .6rem; border:1px solid #334155; border-radius:.4rem; background:#1f2a44; color:#e6eefc;"
+          style="padding:.35rem .6rem; border:1px solid #334155; border-radius:.4rem; background:#1f2a44; color:#e6eefc; cursor:pointer;"
           @click="
             fetch('/slskd/search', {
               method: 'POST',
@@ -73,9 +91,11 @@
         </button>
       </template>
 
+      <!-- After search -->
       <template x-if="searched">
         <span style="color:#34d399; font-size:1.3rem; font-weight:700;">✔️</span>
       </template>
+
     </li>
     {% endfor %}
   </ul>
@@ -83,33 +103,35 @@
 {% endif %}
 
 
-<!-- Script pentru Download CSV -->
+<!-- ========================== -->
+<!-- Download CSV Script        -->
+<!-- ========================== -->
 <script>
-  function downloadCurrentTracksAsCSV(){
-    const rows = Array.from(document.querySelectorAll('.tracklist li .meta'))
-      .map(meta => {
-        const title = meta.querySelector('.title').textContent.trim();
-        const artists = meta.querySelector('.artists').textContent.trim();
-        const query = artists ? (artists + ' - ' + title) : title;
-        return [title, artists, query];
-      });
+function downloadCurrentTracksAsCSV(){
+  const rows = Array.from(document.querySelectorAll('.tracklist li .meta'))
+    .map(meta => {
+      const title = meta.querySelector('.title').textContent.trim();
+      const artists = meta.querySelector('.artists').textContent.trim();
+      const query = artists ? (artists + ' - ' + title) : title;
+      return [title, artists, query];
+    });
 
-    if(!rows.length){ alert('Nu există piese.'); return; }
+  if(!rows.length){ alert('Nu există piese.'); return; }
 
-    const header = ['Track Name','Artist Name(s)','Query'];
-    const all = [header, ...rows];
-    const csv = all.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\r\n');
+  const header = ['Track Name','Artist Name(s)','Query'];
+  const all = [header, ...rows];
+  const csv = all.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\r\n');
 
-    const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'playlist_curent.csv';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'playlist_curent.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
 </script>
 
 {% endblock %}
