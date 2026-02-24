@@ -1,1 +1,32 @@
-{% extends 'base.html' %}{% block content %}<form><input name='playlist'/><button>Load</button></form>{% if tracks %}<ul>{% for t in tracks %}<li>{{t.title}} - {{t.artists}}<form method='post' action='/slskd/search'><input type='hidden' name='q' value='{{t.query}}'/><button>Cauta</button></form></li>{% endfor %}</ul>{% endif %}{% endblock %}
+{% extends "base.html" %}
+{% block content %}
+<section>
+  <form method="GET" action="/">
+    <label for="playlist">Playlist (URL/ID/URI):</label>
+    <input type="text" id="playlist" name="playlist" value="{{ playlist }}" placeholder="https://open.spotify.com/playlist/..." />
+    <button type="submit">Load</button>
+  </form>
+
+  {% if error %}
+    <div class="error">Eroare: {{ error }}</div>
+  {% endif %}
+
+  {% if tracks and not error %}
+  <div class="hint">Piese: {{ tracks|length }}</div>
+  <ul class="tracklist">
+    {% for t in tracks %}
+      <li>
+        <div class="meta">
+          <span class="title">{{ t.title }}</span>
+          <span class="artists">{{ t.artists }}</span>
+        </div>
+        <form method="POST" action="/slskd/search">
+          <input type="hidden" name="q" value="{{ t.query }}" />
+          <button type="submit" class="search-btn">Caută în slskd</button>
+        </form>
+      </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</section>
+{% endblock %}
