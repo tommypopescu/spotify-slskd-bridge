@@ -79,21 +79,22 @@
     <div class="hint" style="margin-top:.5rem;">Piese: {{ tracks|length }}</div>
   {% endif %}
 
-  {% if tracks and not error %}
-  <ul class="tracklist">
-    {% for t in tracks %}
-      <li>
-        <div class="meta">
-          <span class="title">{{ t.title }}</span>
-          <span class="artists">{{ t.artists }}</span>
-        </div>
-        /slskd/search
-          <input type="hidden" name="q" value="{{ t.query }}" />
-          <button type="submit" class="search-btn">Caută în slskd</button>
-        </form>
-      </li>
-    {% endfor %}
-  </ul>
-  {% endif %}
+{% if tracks and not error %}
+<ul class="tracklist">
+  {% for t in tracks %}
+  <li>
+    <div class="meta">
+      <span class="title">{{ t.title }}</span>
+      <span class="artists">{{ t.artists }}</span>
+    </div>
+
+    <form method="POST" action="/slskd/search" style="margin:0">
+      <input type="hidden" name="q" value="{{ t.query }}">
+      <button type="submit" class="search-btn">Caută în slskd</button>
+    </form>
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}
 </section>
 {% endblock %}
