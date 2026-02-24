@@ -2,19 +2,16 @@
 <html lang="ro">
 <head>
   <meta charset="utf-8" />
-  <title>{{ title if title else "Spotify → slskd" }}</title>
+  <title>{{ title if title else "Spotify → slskd bridge" }}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <link rel="stylesheet" href="/static/styles.css">
+  <link rel="stylesheet" href="/static/styles.css" />
+  <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
 </head>
 <body>
-  <header>
-    <h1>Spotify → slskd bridge</h1>
-  </header>
+  <header><h1>Spotify → slskd bridge</h1></header>
   <main>
     {% block content %}{% endblock %}
   </main>
-  <footer>
-    <small>Demo • FastAPI</small>
-  </footer>
+  <footer><small>Demo • FastAPI</small></footer>
 </body>
 </html>
