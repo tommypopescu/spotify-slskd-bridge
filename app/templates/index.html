@@ -1,119 +1,115 @@
 {% extends "base.html" %}
 {% block content %}
+
 <section style="margin:1rem 0; padding:1rem; border:1px solid #22304b; border-radius:.6rem; background:#0e1726">
   <h2 style="margin-top:0">Exportă playlist cu Exportify</h2>
-  <p style="opacity:.85">
-    1) Autentifică-te în Exportify și apasă <strong>Export</strong> la playlistul dorit → se descarcă un fișier <code>.csv</code>.<br>
-    2) Încărcă mai jos fișierul CSV în aplicația noastră (butonul <strong>Încarcă playlist</strong>).
+  <p style="opacity:.85; margin-bottom:.5rem">
+    1) Deschide Exportify → Export CSV.<br>
+    2) Încarcă fișierul CSV mai jos.
   </p>
 
-  <div id="exportify-frame-wrap" style="margin:.75rem 0">
-    <iframe id="exportify-frame"
-            src="https://exportify.app/"
-            title="Exportify"
-            style="width:100%; min-height:560px; border:1px solid #334155; border-radius:.5rem; background:#0b1220"
-            referrerpolicy="no-referrer"
-            loading="lazy">
+  <!-- buton fallback vizibil mereu -->
+  https://exportify.app/
+    Deschide Exportify în tab nou
+  </a>
+
+  <!-- iframe (nu va merge dacă site-ul blochează) -->
+  <div style="margin-top:0.75rem;">
+    https://exportify.app/
     </iframe>
-    <noscript>
-      <p>JavaScript este dezactivat. Deschide Exportify aici:
-        <a href="https://exportify.app/" target="_blank" rel="noopener">exportify.app</a>
-      </p>
-    </noscript>
   </div>
-
-  <div id="exportify-fallback" style="display:none; padding:.5rem .75rem; background:#1f2a44; border-radius:.5rem; border:1px solid #334155">
-    <p style="margin:0 0 .5rem 0">
-      Dacă nu vezi aplicația mai sus, este posibil ca site-ul să blocheze încadrarea în iframe
-      (<em>X-Frame-Options / frame-ancestors</em>). Deschide Exportify într-un tab nou:
-    </p>
-    <a class="btn" href="https://exportify.app/" target="_blank" rel="noopener" style="display:inline-block; padding:.6rem .9rem; border:1px solid #334155; border-radius:.5rem; background:#263455; color:#e6eefc; text-decoration:none">
-      Deschide Exportify într-un tab nou
-    </a>
-  </div>
-
-  <script>
-    // Dacă iframe-ul nu poate fi încărcat (blocat de site-ul țintă), afișăm fallback-ul
-    const iframe = document.getElementById('exportify-frame');
-    const fallback = document.getElementById('exportify-fallback');
-
-    // Heuristic simplu: după 2s de la încercarea de încărcare, dacă nu s-a "stabilizat", afișăm fallback
-    let loaded = false;
-    iframe.addEventListener('load', () => { loaded = true; });
-    setTimeout(() => { if (!loaded) fallback.style.display = 'block'; }, 2000);
-  </script>
 
   <hr style="border:none;border-top:1px solid #22304b;margin:1rem 0"/>
 
-  <form action="/upload" method="post" enctype="multipart/form-data" style="display:flex; gap:.75rem; align-items:center; flex-wrap:wrap">
+  /upload
     <label for="playlist_file" style="white-space:nowrap">CSV din Exportify:</label>
     <input type="file" id="playlist_file" name="playlist_file" accept=".csv,text/csv" />
-    <button type="submit" class="btn" style="padding:.6rem .9rem; border:1px solid #334155; border-radius:.5rem; background:#1f2a44; color:#e6eefc;">
+    <button type="submit" class="btn" style="padding:.5rem .8rem; border:1px solid #334155; border-radius:.5rem; background:#1f2a44; color:#e6eefc;">
       Încarcă playlist
     </button>
   </form>
 </section>
-<section>
-  <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem">
-    <form method="GET" action="/">
-      <label for="playlist">Playlist (URL/ID/URI):</label>
-      <input type="text" id="playlist" name="playlist" value="{{ playlist }}" placeholder="https://open.spotify.com/playlist/..." />
-      <button type="submit">Load</button>
-    </form>
 
-    <div>
-      {% if logged_in %}
-        <span style="opacity:.8;margin-right:.5rem;">Conectat la Spotify</span>
-        <a href="/login" style="display:none">Re-auth</a>
-      {% else %}
-        /login" class="btn">Conectează-te la Spotify</a>
-      {% endif %}
-    </div>
-  </div>
 
-  {% if error %}
-    <div class="error" style="margin-top:1rem;">Eroare: {{ error }}</div>
-  {% endif %}
-
-  {% if tracks is not none %}
-    <div class="hint" style="margin-top:.5rem;">Piese: {{ tracks|length }}</div>
-  {% endif %}
+{% if error %}
+  <div class="error">Eroare: {{ error }}</div>
+{% endif %}
 
 {% if tracks and not error %}
-<ul class="tracklist">
-  {% for t in tracks %}
-<li x-data="{ searched: false }">
-  <div class="meta">
-    <span class="title">{{ t.title }}</span>
-    <span class="artists">{{ t.artists }}</span>
+
+  <div style="margin:.75rem 0;">
+    <strong>Piese:</strong> {{ tracks|length }}
+    <!-- Buton Download CSV -->
+    <button onclick="downloadCurrentTracksAsCSV()"
+            style="margin-left:1rem; padding:.35rem .6rem; border:1px solid #334155; border-radius:.4rem; background:#1f2a44; color:#e6eefc;">
+      Descarcă CSV
+    </button>
   </div>
 
-  <template x-if="!searched">
-    <button
-      class="search-btn"
-      @click="
-        fetch('/slskd/search', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams({ q: '{{ t.query }}' })
-        })
-        .then(r => r.json())
-        .then(j => {
-          if (j.ok) searched = true;
-          else alert('Eroare slskd: ' + (j.detail || 'necunoscută'));
-        })
-        .catch(e => alert('Eroare rețea: ' + e));
-      ">
-      Caută în slskd
-    </button>
-  </template>
+  <ul class="tracklist">
+    {% for t in tracks %}
+    <li x-data="{ searched: false }"
+        style="display:grid; grid-template-columns:1fr auto; align-items:center; gap:.75rem;">
 
-  <template x-if="searched">
-    ✔️
-  </template>
-</li>
-  {% endfor %}
-</ul>
+      <div class="meta">
+        <span class="title">{{ t.title }}</span>
+        <span class="artists" style="opacity:.8">{{ t.artists }}</span>
+      </div>
+
+      <template x-if="!searched">
+        <button
+          style="padding:.35rem .6rem; border:1px solid #334155; border-radius:.4rem; background:#1f2a44; color:#e6eefc;"
+          @click="
+            fetch('/slskd/search', {
+              method: 'POST',
+              headers: { 'Content-Type':'application/x-www-form-urlencoded' },
+              body: new URLSearchParams({ q: '{{ t.query }}' })
+            })
+            .then(r => r.json())
+            .then(j => { if (j.ok) searched = true; else alert('Eroare slskd!'); })
+            .catch(e => alert('Eroare rețea: ' + e));
+          ">
+          Caută în slskd
+        </button>
+      </template>
+
+      <template x-if="searched">
+        <span style="color:#34d399; font-size:1.3rem; font-weight:700;">✔️</span>
+      </template>
+    </li>
+    {% endfor %}
+  </ul>
+
 {% endif %}
-</section>
+
+
+<!-- Script pentru Download CSV -->
+<script>
+  function downloadCurrentTracksAsCSV(){
+    const rows = Array.from(document.querySelectorAll('.tracklist li .meta'))
+      .map(meta => {
+        const title = meta.querySelector('.title').textContent.trim();
+        const artists = meta.querySelector('.artists').textContent.trim();
+        const query = artists ? (artists + ' - ' + title) : title;
+        return [title, artists, query];
+      });
+
+    if(!rows.length){ alert('Nu există piese.'); return; }
+
+    const header = ['Track Name','Artist Name(s)','Query'];
+    const all = [header, ...rows];
+    const csv = all.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\r\n');
+
+    const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'playlist_curent.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+</script>
+
 {% endblock %}
