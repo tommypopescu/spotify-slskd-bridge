@@ -82,17 +82,36 @@
 {% if tracks and not error %}
 <ul class="tracklist">
   {% for t in tracks %}
-  <li>
-    <div class="meta">
-      <span class="title">{{ t.title }}</span>
-      <span class="artists">{{ t.artists }}</span>
-    </div>
+<li x-data="{ searched: false }">
+  <div class="meta">
+    <span class="title">{{ t.title }}</span>
+    <span class="artists">{{ t.artists }}</span>
+  </div>
 
-    <form method="POST" action="/slskd/search" style="margin:0">
-      <input type="hidden" name="q" value="{{ t.query }}">
-      <button type="submit" class="search-btn">Caută în slskd</button>
-    </form>
-  </li>
+  <template x-if="!searched">
+    <button
+      class="search-btn"
+      @click="
+        fetch('/slskd/search', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({ q: '{{ t.query }}' })
+        })
+        .then(r => r.json())
+        .then(j => {
+          if (j.ok) searched = true;
+          else alert('Eroare slskd: ' + (j.detail || 'necunoscută'));
+        })
+        .catch(e => alert('Eroare rețea: ' + e));
+      ">
+      Caută în slskd
+    </button>
+  </template>
+
+  <template x-if="searched">
+    ✔️
+  </template>
+</li>
   {% endfor %}
 </ul>
 {% endif %}
