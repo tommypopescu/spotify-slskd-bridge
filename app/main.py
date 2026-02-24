@@ -33,7 +33,6 @@ async def index(request: Request):
         },
     )
 
-
 # ------------------------------
 # Upload CSV Exportify
 # ------------------------------
@@ -49,20 +48,12 @@ async def upload_playlist(request: Request, playlist_file: UploadFile = File(...
         for row in reader:
             title = (row.get("Track Name") or "").strip()
             artists_raw = (row.get("Artist Name(s)") or "").strip()
-
             if not title and not artists_raw:
                 continue
-
-            # Exportify poate separa artiștii cu ";"
+            # Exportify separă artiștii cu ';'
             artists = ", ".join([a.strip() for a in artists_raw.split(";") if a.strip()])
-
             query = f"{artists} - {title}".strip(" -")
-
-            tracks.append({
-                "title": title,
-                "artists": artists,
-                "query": query
-            })
+            tracks.append({"title": title, "artists": artists, "query": query})
 
         logger.info("[upload] Parsed %d tracks from %s", len(tracks), playlist_file.filename)
 
@@ -81,7 +72,6 @@ async def upload_playlist(request: Request, playlist_file: UploadFile = File(...
         },
     )
 
-
 # ------------------------------
 # Căutare slskd
 # ------------------------------
@@ -92,7 +82,6 @@ async def slskd_search(q: str = Form(...)):
         return JSONResponse({"ok": True, "q": q, "slskd": data})
     except Exception as ex:
         raise HTTPException(status_code=502, detail=f"slskd error: {ex}")
-
 
 # ------------------------------
 # Health check

@@ -9,25 +9,19 @@
     2) Încarcă fișierul CSV mai jos.
   </p>
 
-  <!-- Buton fallback (sigur funcțional) -->
+  <!-- Buton (fără iframe) -->
   <p style="margin:.25rem 0;">
     <a href="https://exportify.app/" target="_blank" rel="noopener"
-       style="padding:.4rem .65rem; border:1px solid #334155; border-radius:.4rem; background:#1f2a44; color:#e6eefc; text-decoration:none;">
+       style="display:inline-block; padding:.45rem .75rem; border:1px solid #334155; border-radius:.5rem; background:#1f2a44; color:#e6eefc; text-decoration:none;">
       Deschide Exportify în tab nou
     </a>
   </p>
 
-  <!-- Iframe informativ (poate fi blocat de X-Frame-Options/CSP la exportify) -->
-  <div style="margin-top:0.75rem;">
-    <iframe src="https://exportify.app/" width="100%" height="360" frameborder="0"
-            style="border:1px solid #22304b; border-radius:.4rem;"></iframe>
-  </div>
-
   <hr style="border:none;border-top:1px solid #22304b;margin:1rem 0"/>
 
   <!-- =============== Upload CSV =============== -->
-  <form action="/upload" method="POST" enctype="multipart/form-data" style="display:flex; gap:.5rem; align-items:center; flex-wrap:wrap;">
-    <label for="playlist_file" style="white-space:nowrap">/upload CSV din Exportify:</label>
+  <form action="/upload" method="POST" enctype="multipart/form-data">
+    <label for="playlist_file" style="white-space:nowrap; margin-right:.25rem;">CSV din Exportify:</label>
     <input type="file" id="playlist_file" name="playlist_file" accept=".csv,text/csv" />
     <button type="submit"
             style="padding:.5rem .8rem; border:1px solid #334155; border-radius:.5rem; background:#1f2a44; color:#e6eefc; cursor:pointer;">
@@ -41,8 +35,7 @@
 {% endif %}
 
 {% if tracks and not error %}
-
-  <!-- Injectăm lista curentă ca JSON pentru download robust -->
+  <!-- Injectăm lista ca JSON pentru Download CSV robust -->
   <script id="tracks-data" type="application/json">
     {{ tracks | tojson }}
   </script>
@@ -58,35 +51,41 @@
   <ul class="tracklist">
     {% for t in tracks %}
     <li x-data="{ searched: false }"
-        style="display:grid; grid-template-columns:1fr auto; align-items:center; gap:.75rem; padding:.3rem 0;">
+        style="display:flex; justify-content:space-between; gap:.75rem; align-items:center; padding:.3rem 0;">
 
-      <div class="meta">
-        <span class="title">{{ t.title }}</span>
-        <span class="artists" style="opacity:.8">{{ t.artists }}</span>
+      <!-- stânga: text melodie -->
+      <div class="meta" style="min-width:0;">
+        <span class="title" style="display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+          {{ t.title }}
+        </span>
+        <span class="artists" style="opacity:.8; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+          {{ t.artists }}
+        </span>
       </div>
 
-      <template x-if="!searched">
-        <button
-          style="padding:.35rem .6rem; border:1px solid #334155; border-radius:.4rem;
-                 background:#1f2a44; color:#e6eefc; cursor:pointer;"
-          @click="
-            fetch('/slskd/search', {
-              method: 'POST',
-              headers: { 'Content-Type':'application/x-www-form-urlencoded' },
-              body: new URLSearchParams({ q: '{{ t.query }}' })
-            })
-            .then(r => r.json())
-            .then(j => { if (j.ok) searched = true; else alert('Eroare slskd: ' + (j.detail || 'necunoscută')); })
-            .catch(e => alert('Eroare rețea: ' + e));
-          ">
-          Caută în slskd
-        </button>
-      </template>
+      <!-- dreapta: buton/✔️ pe același rând -->
+      <div style="flex:0 0 auto;">
+        <template x-if="!searched">
+          <button
+            style="padding:.3rem .55rem; border:1px solid #334155; border-radius:.4rem; background:#1f2a44; color:#e6eefc; cursor:pointer;"
+            @click="
+              fetch('/slskd/search', {
+                method: 'POST',
+                headers: { 'Content-Type':'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({ q: '{{ t.query }}' })
+              })
+              .then(r => r.json())
+              .then(j => { if (j.ok) searched = true; else alert('Eroare slskd: ' + (j.detail || 'necunoscută')); })
+              .catch(e => alert('Eroare rețea: ' + e));
+            ">
+            Caută în slskd
+          </button>
+        </template>
 
-      <template x-if="searched">
-        <span style="color:#34d399; font-size:1.3rem; font-weight:700;">✔️</span>
-      </template>
-
+        <template x-if="searched">
+          <span style="color:#34d399; font-size:1.1rem; font-weight:700;">✔️</span>
+        </template>
+      </div>
     </li>
     {% endfor %}
   </ul>
@@ -109,7 +108,6 @@
         return;
       }
 
-      // Construim CSV stabil din {title, artists, query}
       const header = ['Track Name','Artist Name(s)','Query'];
       const rows = [header];
       for(const t of tracks){

@@ -8,8 +8,7 @@ logger = logging.getLogger("uvicorn")
 SLSKD_BASE = os.getenv("SLSKD_BASE", "http://192.168.1.7:5030")
 
 _raw_key = os.getenv("SLSKD_API_KEY", "") or ""
-
-# dacă cheia din slskd este de forma: role=Admin;cidr=...;TOKEN → extragem TOKEN
+# Acceptă fie token brut, fie format extins: role=...;cidr=...;TOKEN
 SLSKD_API_KEY = _raw_key.split(";")[-1].strip() if _raw_key else ""
 
 async def search_in_slskd(query: str) -> dict:
@@ -20,7 +19,6 @@ async def search_in_slskd(query: str) -> dict:
         "Content-Type": "application/json"
     }
 
-    # Log discret (nu expunem cheia completă)
     tail = SLSKD_API_KEY[-4:] if SLSKD_API_KEY else "NONE"
     logger.info("[slskd] POST %s key_present=%s endswith=%s query=%s",
                 url, bool(SLSKD_API_KEY), tail, query)
