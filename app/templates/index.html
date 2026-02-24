@@ -1,24 +1,24 @@
 {% extends "base.html" %}
 {% block content %}
 
-<!-- ========================== -->
-<!-- Exportify Section          -->
-<!-- ========================== -->
+<!-- ======================================= -->
+<!--   EXPORTIFY SECTION                     -->
+<!-- ======================================= -->
 <section style="margin:1rem 0; padding:1rem; border:1px solid #22304b; border-radius:.6rem; background:#0e1726">
 
   <h2 style="margin-top:0">Exportă playlist cu Exportify</h2>
 
   <p style="opacity:.85; margin-bottom:.5rem">
     1) Deschide Exportify și apasă <strong>Export</strong> → se descarcă un <code>.csv</code>.<br>
-    2) Încarcă mai jos fișierul CSV în aplicație.
+    2) Încarcă fișierul mai jos.
   </p>
 
-  <!-- Buton fallback (FUNCȚIONEAZĂ 100%) -->
+  <!-- BUTON FALLBACK (100% FUNCȚIONAL) -->
   https://exportify.app/
     Deschide Exportify în tab nou
   </a>
 
-  <!-- Iframe (poate fi blocat de X-Frame-Options – este NORMAL) -->
+  <!-- IFRAME (E NORMAL dacă NU FUNCȚIONEAZĂ — Exportify blochează iframe) -->
   <div style="margin-top:0.75rem;">
     https://exportify.app/
     </iframe>
@@ -26,9 +26,9 @@
 
   <hr style="border:none;border-top:1px solid #22304b;margin:1rem 0"/>
 
-  <!-- ========================== -->
-  <!-- Upload CSV Section -->     
-  <!-- ========================== -->
+  <!-- ======================================= -->
+  <!--   UPLOAD CSV SECTION                    -->
+  <!-- ======================================= -->
   /upload
     <label for="playlist_file" style="white-space:nowrap">CSV din Exportify:</label>
     <input type="file" id="playlist_file" name="playlist_file" accept=".csv,text/csv" />
@@ -41,39 +41,40 @@
 </section>
 
 
-<!-- ========================== -->
-<!-- Results / Errors           -->
-<!-- ========================== -->
+<!-- ======================================= -->
+<!--  ERRORS                                 -->
+<!-- ======================================= -->
 {% if error %}
   <div class="error">Eroare: {{ error }}</div>
 {% endif %}
 
+
+<!-- ======================================= -->
+<!--  TRACKLIST PARSAT DIN CSV               -->
+<!-- ======================================= -->
 {% if tracks and not error %}
 
   <div style="margin:.75rem 0;">
     <strong>Piese:</strong> {{ tracks|length }}
 
-    <!-- Buton Download CSV -->
+    <!-- Buton DOWNLOAD CSV -->
     <button onclick="downloadCurrentTracksAsCSV()"
             style="margin-left:1rem; padding:.35rem .6rem; border:1px solid #334155; border-radius:.4rem; background:#1f2a44; color:#e6eefc;">
       Descarcă CSV
     </button>
   </div>
 
-  <!-- ========================== -->
-  <!-- Tracklist                  -->
-  <!-- ========================== -->
   <ul class="tracklist">
     {% for t in tracks %}
     <li x-data="{ searched: false }"
-        style="display:grid; grid-template-columns:1fr auto; align-items:center; gap:.75rem;">
+        style="display:grid; grid-template-columns:1fr auto; align-items:center; gap:.75rem; padding:.3rem 0;">
 
       <div class="meta">
         <span class="title">{{ t.title }}</span>
         <span class="artists" style="opacity:.8">{{ t.artists }}</span>
       </div>
 
-      <!-- Before search -->
+      <!-- Buton Caută -->
       <template x-if="!searched">
         <button
           style="padding:.35rem .6rem; border:1px solid #334155; border-radius:.4rem; background:#1f2a44; color:#e6eefc; cursor:pointer;"
@@ -91,7 +92,7 @@
         </button>
       </template>
 
-      <!-- After search -->
+      <!-- BIFA după succes -->
       <template x-if="searched">
         <span style="color:#34d399; font-size:1.3rem; font-weight:700;">✔️</span>
       </template>
@@ -103,35 +104,10 @@
 {% endif %}
 
 
-<!-- ========================== -->
-<!-- Download CSV Script        -->
-<!-- ========================== -->
+<!-- ======================================= -->
+<!--  SCRIPT DOWNLOAD CSV                    -->
+<!-- ======================================= -->
 <script>
 function downloadCurrentTracksAsCSV(){
   const rows = Array.from(document.querySelectorAll('.tracklist li .meta'))
     .map(meta => {
-      const title = meta.querySelector('.title').textContent.trim();
-      const artists = meta.querySelector('.artists').textContent.trim();
-      const query = artists ? (artists + ' - ' + title) : title;
-      return [title, artists, query];
-    });
-
-  if(!rows.length){ alert('Nu există piese.'); return; }
-
-  const header = ['Track Name','Artist Name(s)','Query'];
-  const all = [header, ...rows];
-  const csv = all.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\r\n');
-
-  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'playlist_curent.csv';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
-</script>
-
-{% endblock %}
