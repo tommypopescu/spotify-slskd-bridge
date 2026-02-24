@@ -1,18 +1,32 @@
 {% extends "base.html" %}
 {% block content %}
 <section>
-  <form method="GET" action="/">
-    <label for="playlist">Playlist (URL/ID/URI):</label>
-    <input type="text" id="playlist" name="playlist" value="{{ playlist }}" placeholder="https://open.spotify.com/playlist/..." />
-    <button type="submit">Load</button>
-  </form>
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem">
+    <form method="GET" action="/">
+      <label for="playlist">Playlist (URL/ID/URI):</label>
+      <input type="text" id="playlist" name="playlist" value="{{ playlist }}" placeholder="https://open.spotify.com/playlist/..." />
+      <button type="submit">Load</button>
+    </form>
+
+    <div>
+      {% if logged_in %}
+        <span style="opacity:.8;margin-right:.5rem;">Conectat la Spotify</span>
+        <a href="/login" style="display:none">Re-auth</a>
+      {% else %}
+        /login" class="btn">Conectează-te la Spotify</a>
+      {% endif %}
+    </div>
+  </div>
 
   {% if error %}
-    <div class="error">Eroare: {{ error }}</div>
+    <div class="error" style="margin-top:1rem;">Eroare: {{ error }}</div>
+  {% endif %}
+
+  {% if tracks is not none %}
+    <div class="hint" style="margin-top:.5rem;">Piese: {{ tracks|length }}</div>
   {% endif %}
 
   {% if tracks and not error %}
-  <div class="hint">Piese: {{ tracks|length }}</div>
   <ul class="tracklist">
     {% for t in tracks %}
       <li>
@@ -20,7 +34,7 @@
           <span class="title">{{ t.title }}</span>
           <span class="artists">{{ t.artists }}</span>
         </div>
-        <form method="POST" action="/slskd/search">
+        /slskd/search
           <input type="hidden" name="q" value="{{ t.query }}" />
           <button type="submit" class="search-btn">Caută în slskd</button>
         </form>
