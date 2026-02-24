@@ -3,7 +3,8 @@ import os, httpx, logging
 logger = logging.getLogger("uvicorn")
 
 SLSKD_BASE = os.getenv("SLSKD_BASE", "http://192.168.1.7:5030")
-SLSKD_API_KEY = os.getenv("SLSKD_API_KEY", "")
+_raw = os.getenv("SLSKD_API_KEY", "")
+SLSKD_API_KEY = _raw.split(";")[-1].strip() if _raw else ""  # ← extrage doar tokenul final
 
 async def search_in_slskd(query: str) -> dict:
     url = f"{SLSKD_BASE}/api/v0/searches"
