@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 
-<!-- =============== Exportify =============== -->
+<!-- =============== Exportify (fără iframe) =============== -->
 <section style="margin:1rem 0; padding:1rem; border:1px solid #22304b; border-radius:.6rem; background:#0e1726">
   <h2 style="margin-top:0">Exportă playlist cu Exportify</h2>
   <p style="opacity:.85; margin-bottom:.5rem">
@@ -9,18 +9,17 @@
     2) Încarcă fișierul CSV mai jos.
   </p>
 
-  <!-- Buton (fără iframe) -->
   <p style="margin:.25rem 0;">
     <a href="https://exportify.app/" target="_blank" rel="noopener"
-       style="display:inline-block; padding:.45rem .75rem; border:1px solid #334155; border-radius:.5rem; background:#1f2a44; color:#e6eefc; text-decoration:none;">
+       style="padding:.45rem .7rem; border:1px solid #334155; border-radius:.45rem; background:#1f2a44; color:#e6eefc; text-decoration:none;">
       Deschide Exportify în tab nou
     </a>
   </p>
 
   <hr style="border:none;border-top:1px solid #22304b;margin:1rem 0"/>
 
-  <!-- =============== Upload CSV =============== -->
-  <form action="/upload" method="POST" enctype="multipart/form-data">
+  <!-- Upload CSV -->
+  <form action="/upload" method="POST" enctype="multipart/form-data" style="margin:0;">
     <label for="playlist_file" style="white-space:nowrap; margin-right:.25rem;">CSV din Exportify:</label>
     <input type="file" id="playlist_file" name="playlist_file" accept=".csv,text/csv" />
     <button type="submit"
@@ -35,26 +34,53 @@
 {% endif %}
 
 {% if tracks and not error %}
-  <!-- Injectăm lista ca JSON pentru Download CSV robust -->
+  <!-- Injectăm lista ca JSON pentru download robust -->
   <script id="tracks-data" type="application/json">
     {{ tracks | tojson }}
   </script>
 
-  <div style="margin:.75rem 0;">
+  <!-- Toolbar rezultate -->
+  <div style="display:flex; align-items:center; gap:.75rem; flex-wrap:wrap; margin:.75rem 0;">
     <strong>Piese:</strong> {{ tracks|length }}
+
+    <!-- Descarcă CSV (din lista curentă) -->
     <button id="downloadCsvBtn"
-            style="margin-left:1rem; padding:.35rem .6rem; border:1px solid #334155; border-radius:.4rem; background:#1f2a44; color:#e6eefc; cursor:pointer;">
+            style="padding:.35rem .6rem; border:1px solid #334155; border-radius:.4rem; background:#1f2a44; color:#e6eefc; cursor:pointer;">
       Descarcă CSV
     </button>
+
+    <!-- Selectare rapidă -->
+    <button id="selectAllBtn"
+            style="padding:.35rem .6rem; border:1px solid #334155; border-radius:.4rem; background:#18223b; color:#e6eefc; cursor:pointer;">
+      Selectează toate
+    </button>
+    <button id="clearAllBtn"
+            style="padding:.35rem .6rem; border:1px solid #334155; border-radius:.4rem; background:#18223b; color:#e6eefc; cursor:pointer;">
+      Deselectează toate
+    </button>
+
+    <!-- Caută selectate cu interval 10s -->
+    <button id="searchSelectedBtn"
+            style="padding:.35rem .6rem; border:1px solid #334155; border-radius:.4rem; background:#0f3d2e; color:#e6eefc; cursor:pointer;">
+      Caută selectate (10s)
+    </button>
+
+    <!-- Stare execuție -->
+    <span id="batchStatus" style="opacity:.8"></span>
   </div>
 
-  <ul class="tracklist">
+  <!-- Lista pieselor -->
+  <ul class="tracklist" id="tracklist">
     {% for t in tracks %}
     <li x-data="{ searched: false }"
-        style="display:flex; justify-content:space-between; gap:.75rem; align-items:center; padding:.3rem 0;">
+        style="display:flex; align-items:center; gap:.6rem; padding:.25rem 0;">
 
-      <!-- stânga: text melodie -->
-      <div class="meta" style="min-width:0;">
+      <!-- Checkbox lângă melodie -->
+      <input type="checkbox" class="sel" value="{{ t.query }}"
+             style="transform:translateY(1px);" />
+
+      <!-- Text melodie (titlu + artiști) -->
+      <div class="meta" style="min-width:0; flex:1 1 auto;">
         <span class="title" style="display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
           {{ t.title }}
         </span>
@@ -63,10 +89,12 @@
         </span>
       </div>
 
-      <!-- dreapta: buton/✔️ pe același rând -->
+      <!-- Buton Caută lipit de textul melodiei (pe același rând) -->
       <div style="flex:0 0 auto;">
         <template x-if="!searched">
           <button
+            class="one-search-btn"
+            data-q="{{ t.query }}"
             style="padding:.3rem .55rem; border:1px solid #334155; border-radius:.4rem; background:#1f2a44; color:#e6eefc; cursor:pointer;"
             @click="
               fetch('/slskd/search', {
@@ -75,7 +103,15 @@
                 body: new URLSearchParams({ q: '{{ t.query }}' })
               })
               .then(r => r.json())
-              .then(j => { if (j.ok) searched = true; else alert('Eroare slskd: ' + (j.detail || 'necunoscută')); })
+              .then(j => {
+                if (j.ok) {
+                  searched = true;
+                  const cb = $el.closest('li').querySelector('.sel');
+                  if (cb) { cb.checked = true; cb.disabled = true; }
+                } else {
+                  alert('Eroare slskd: ' + (j.detail || 'necunoscută'));
+                }
+              })
               .catch(e => alert('Eroare rețea: ' + e));
             ">
             Caută în slskd
@@ -91,22 +127,17 @@
   </ul>
 {% endif %}
 
-<!-- =============== Script Download CSV (din JSON) =============== -->
+<!-- =============== Scripturi auxiliare =============== -->
 <script>
 (function(){
-  const btn = document.getElementById('downloadCsvBtn');
-  if (!btn) return;
-
-  btn.addEventListener('click', function(){
-    try{
+  // --- Download CSV din JSON injectat ---
+  const btnDownload = document.getElementById('downloadCsvBtn');
+  if (btnDownload) {
+    btnDownload.addEventListener('click', function(){
       const el = document.getElementById('tracks-data');
-      if(!el){ alert('Nu există date pentru export. Încarcă întâi CSV.'); return; }
-
+      if(!el){ alert('Nu există date pentru export. Încarcă CSV.'); return; }
       const tracks = JSON.parse(el.textContent || '[]');
-      if(!Array.isArray(tracks) || !tracks.length){
-        alert('Nu există piese de exportat.');
-        return;
-      }
+      if(!Array.isArray(tracks) || !tracks.length){ alert('Nu există piese.'); return; }
 
       const header = ['Track Name','Artist Name(s)','Query'];
       const rows = [header];
@@ -116,22 +147,96 @@
         const query = (t.query || (artists ? (artists + ' - ' + title) : title)).toString();
         rows.push([title, artists, query]);
       }
-
       const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\r\n');
       const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
       const url  = URL.createObjectURL(blob);
       const a    = document.createElement('a');
-      a.href = url;
-      a.download = 'playlist_curent.csv';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      a.href = url; a.download = 'playlist_curent.csv';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
       URL.revokeObjectURL(url);
-    }catch(e){
-      console.error(e);
-      alert('Eroare la generarea CSV.');
-    }
-  });
+    });
+  }
+
+  // --- Select All / Clear All ---
+  const tracklist = document.getElementById('tracklist');
+  const btnSelAll = document.getElementById('selectAllBtn');
+  const btnClrAll = document.getElementById('clearAllBtn');
+  if (btnSelAll && tracklist) {
+    btnSelAll.addEventListener('click', () => {
+      tracklist.querySelectorAll('input.sel:not(:disabled)').forEach(cb => cb.checked = true);
+    });
+  }
+  if (btnClrAll && tracklist) {
+    btnClrAll.addEventListener('click', () => {
+      tracklist.querySelectorAll('input.sel:not(:disabled)').forEach(cb => cb.checked = false);
+    });
+  }
+
+  // --- Caută selectate (10 sec interval) ---
+  const btnBatch = document.getElementById('searchSelectedBtn');
+  const statusEl = document.getElementById('batchStatus');
+  if (btnBatch && tracklist) {
+    btnBatch.addEventListener('click', async () => {
+      const cbs = Array.from(tracklist.querySelectorAll('input.sel:checked'))
+                       .filter(cb => !cb.disabled);
+      if (!cbs.length) { alert('Selectează cel puțin o melodie.'); return; }
+
+      btnBatch.disabled = true;
+      const oneBtns = tracklist.querySelectorAll('.one-search-btn');
+      oneBtns.forEach(b => b.disabled = true);
+
+      const intervalMs = 10000; // 10 secunde
+      let idx = 0;
+
+      for (const cb of cbs) {
+        const li = cb.closest('li');
+        const q  = cb.value;
+        statusEl.textContent = `Trimit ${idx+1}/${cbs.length} ...`;
+
+        try {
+          const body = new URLSearchParams({ q });
+          const resp = await fetch('/slskd/search', {
+            method: 'POST',
+            headers: { 'Content-Type':'application/x-www-form-urlencoded' },
+            body
+          });
+          const json = await resp.json();
+          if (json && json.ok) {
+            // marchează ca „trimis”
+            cb.disabled = true;
+            // schimbă butonul în ✔️ dacă există
+            const xroot = li.__x ? li.__x.$data : null; // Alpine intern (dacă e disponibil)
+            if (xroot && typeof xroot.searched !== 'undefined') {
+              xroot.searched = true;
+            } else {
+              // fallback: înlătură butonul și adaugă ✔️
+              const btn = li.querySelector('.one-search-btn');
+              if (btn) btn.remove();
+              const mark = document.createElement('span');
+              mark.textContent = '✔️';
+              mark.style.cssText = 'color:#34d399; font-size:1.1rem; font-weight:700;';
+              li.lastElementChild.appendChild(mark);
+            }
+          } else {
+            console.warn('Eroare slskd pentru', q, json);
+          }
+        } catch (e) {
+          console.error('Network error pentru', q, e);
+        }
+
+        idx++;
+        if (idx < cbs.length) {
+          // așteaptă 10s între apeluri
+          await new Promise(r => setTimeout(r, intervalMs));
+        }
+      }
+
+      statusEl.textContent = 'Gata.';
+      btnBatch.disabled = false;
+      oneBtns.forEach(b => b.disabled = false);
+      setTimeout(() => { statusEl.textContent = ''; }, 3000);
+    });
+  }
 })();
 </script>
 
