@@ -1,11 +1,15 @@
 # app/slskd.py
-import os, httpx, logging
+import os
+import httpx
+import logging
+
 logger = logging.getLogger("uvicorn")
 
 SLSKD_BASE = os.getenv("SLSKD_BASE", "http://192.168.1.7:5030")
 
-_raw_key = os.getenv("SLSKD_API_KEY", "")
-SLSKD_API_KEY = _raw_key.split(";")[-1].strip()   # ← AICI E FIX-UL
+_raw_key = os.getenv("SLSKD_API_KEY", "") or ""
+# dacă env conține "role=...;cidr=...;TOKEN" → păstrăm doar TOKEN
+SLSKD_API_KEY = _raw_key.split(";")[-1].strip() if _raw_key else ""
 
 async def search_in_slskd(query: str) -> dict:
     url = f"{SLSKD_BASE}/api/v0/searches"
@@ -15,8 +19,10 @@ async def search_in_slskd(query: str) -> dict:
         "Content-Type": "application/json"
     }
 
-    logger.info("[slskd] POST %s key='%s' query='%s'",
-                url, SLSKD_API_KEY, query)
+    # log cu ultimele 4 caractere din cheie pentru debug (fără a expune cheia completă)
+    mask = (SLSKD_API_KEY[-4:] if SLSKD_API_KEY else "NONE")
+    logger.info("[slskd] POST %s key_present=%s (endswith=%s) query=%s",
+                url, bool(SLSKD_API_KEY), mask, query)
 
     async with httpx.AsyncClient(timeout=20) as client:
         resp = await client.post(url, json=payload, headers=headers)
