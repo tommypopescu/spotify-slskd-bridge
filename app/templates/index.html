@@ -1,0 +1,1 @@
+{% extends 'base.html' %}{% block content %}<form><input name='playlist'/><button>Load</button></form>{% if tracks %}<ul>{% for t in tracks %}<li>{{t.title}} - {{t.artists}}<form method='post' action='/slskd/search'><input type='hidden' name='q' value='{{t.query}}'/><button>Cauta</button></form></li>{% endfor %}</ul>{% endif %}{% endblock %}
