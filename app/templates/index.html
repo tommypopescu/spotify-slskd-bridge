@@ -5,29 +5,28 @@
 <section style="margin:1rem 0; padding:1rem; border:1px solid #22304b; border-radius:.6rem; background:#0e1726">
   <h2 style="margin-top:0">Exportă playlist cu Exportify</h2>
   <p style="opacity:.85; margin-bottom:.5rem">
-    1) Deschide Exportify și apasă <strong>Export</strong> → se descarcă un <code>.csv</code>.<br>
+    1) Deschide Exportify → apasă <strong>Export</strong> → se descarcă CSV.<br>
     2) Încarcă fișierul CSV mai jos.
   </p>
 
   <p style="margin:.25rem 0;">
-    <a href="https://exportify.app/" target="_blank" rel="noopener"
-       style="padding:.45rem .7rem; border:1px solid #334155; border-radius:.45rem; background:#1f2a44; color:#e6eefc; text-decoration:none;">
+    https://exportify.app/
       Deschide Exportify în tab nou
     </a>
   </p>
 
   <hr style="border:none;border-top:1px solid #22304b;margin:1rem 0"/>
 
-<!-- =============== Upload CSV din Exportify =============== -->
-<form action="/upload" method="POST" enctype="multipart/form-data" style="display:flex; gap:.5rem; align-items:center; flex-wrap:wrap;">
-  <label for="playlist_file" style="white-space:nowrap; margin-right:.25rem;">CSV din Exportify:</label>
-  <input type="file" id="playlist_file" name="playlist_file" accept=".csv,text/csv"
-         style="padding:.35rem .5rem; border:1px solid #334155; border-radius:.35rem; background:#0e1726; color:#e6eefc;" />
-  <button type="submit"
-          style="padding:.5rem .8rem; border:1px solid #334155; border-radius:.5rem; background:#1f2a44; color:#e6eefc; cursor:pointer;">
-    Încarcă playlist
-  </button>
-</form>
+  <!-- =============== Upload CSV =============== -->
+  /upload
+    <label for="playlist_file" style="white-space:nowrap; margin-right:.25rem;">CSV din Exportify:</label>
+    <input type="file" id="playlist_file" name="playlist_file" accept=".csv,text/csv"
+           style="padding:.35rem .5rem; border:1px solid #334155; border-radius:.35rem; background:#0e1726; color:#e6eefc;" />
+    <button type="submit"
+            style="padding:.5rem .8rem; border:1px solid #334155; border-radius:.5rem; background:#1f2a44; color:#e6eefc; cursor:pointer;">
+      Încarcă playlist
+    </button>
+  </form>
 </section>
 
 {% if error %}
@@ -35,22 +34,27 @@
 {% endif %}
 
 {% if tracks and not error %}
-  <!-- Injectăm lista ca JSON pentru download robust -->
+  <!-- JSON-ul nu este obligatoriu pentru funcționalitate, dar îl putem folosi la export -->
   <script id="tracks-data" type="application/json">
     {{ tracks | tojson }}
   </script>
 
-  <!-- Toolbar rezultate -->
+  <!-- ===== Toolbar rezultate ===== -->
   <div style="display:flex; align-items:center; gap:.75rem; flex-wrap:wrap; margin:.75rem 0;">
     <strong>Piese:</strong> {{ tracks|length }}
 
-    <!-- Descarcă CSV (din lista curentă) -->
+    <!-- Filtru live -->
+    <input id="filterBox"
+           placeholder="Filtrează piese (titlu / artiști / query)…"
+           style="padding:.35rem .6rem; border:1px solid #334155; border-radius:.4rem; background:#0e1726; color:#e6eefc; min-width:260px;" />
+
+    <!-- Descarcă CSV (lista curentă) -->
     <button id="downloadCsvBtn"
             style="padding:.35rem .6rem; border:1px solid #334155; border-radius:.4rem; background:#1f2a44; color:#e6eefc; cursor:pointer;">
       Descarcă CSV
     </button>
 
-    <!-- Selectare rapidă -->
+    <!-- Select all / clear -->
     <button id="selectAllBtn"
             style="padding:.35rem .6rem; border:1px solid #334155; border-radius:.4rem; background:#18223b; color:#e6eefc; cursor:pointer;">
       Selectează toate
@@ -60,27 +64,29 @@
       Deselectează toate
     </button>
 
-    <!-- Caută selectate cu interval 10s -->
+    <!-- Batch (10s) -->
     <button id="searchSelectedBtn"
             style="padding:.35rem .6rem; border:1px solid #334155; border-radius:.4rem; background:#0f3d2e; color:#e6eefc; cursor:pointer;">
       Caută selectate (10s)
     </button>
 
-    <!-- Stare execuție -->
     <span id="batchStatus" style="opacity:.8"></span>
   </div>
 
-  <!-- Lista pieselor -->
-  <ul class="tracklist" id="tracklist">
+  <!-- ===== Lista pieselor ===== -->
+  <ul class="tracklist" id="tracklist" style="padding:0; list-style:none;">
     {% for t in tracks %}
     <li x-data="{ searched: false }"
-        style="display:flex; align-items:center; gap:.6rem; padding:.25rem 0;">
+        data-title="{{ t.title|lower }}"
+        data-artists="{{ t.artists|lower }}"
+        data-query="{{ t.query|lower }}"
+        style="padding:.55rem 0; border-bottom:1px solid #334155; display:flex; align-items:center; gap:.6rem;">
 
-      <!-- Checkbox lângă melodie -->
-      <input type="checkbox" class="sel" value="{{ t.query }}"
+      <!-- Checkbox -->
+      <input type="checkbox" class="sel" data-query="{{ t.query }}"
              style="transform:translateY(1px);" />
 
-      <!-- Text melodie (titlu + artiști) -->
+      <!-- Text melodie -->
       <div class="meta" style="min-width:0; flex:1 1 auto;">
         <span class="title" style="display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
           {{ t.title }}
@@ -90,7 +96,7 @@
         </span>
       </div>
 
-      <!-- Buton Caută lipit de textul melodiei (pe același rând) -->
+      <!-- Buton Caută lipit de text + ✔️ după succes -->
       <div style="flex:0 0 auto;">
         <template x-if="!searched">
           <button
@@ -108,14 +114,14 @@
                 if (j.ok) {
                   searched = true;
                   const cb = $el.closest('li').querySelector('.sel');
-                  if (cb) { cb.checked = true; cb.disabled = true; }
+                  if (cb) { cb.checked = true; cb.disabled = true; saveSelection(); }
                 } else {
                   alert('Eroare slskd: ' + (j.detail || 'necunoscută'));
                 }
               })
               .catch(e => alert('Eroare rețea: ' + e));
             ">
-            Caută în slskd
+            Caută
           </button>
         </template>
 
@@ -128,116 +134,166 @@
   </ul>
 {% endif %}
 
-<!-- =============== Scripturi auxiliare =============== -->
+<!-- =============== Scripturi =============== -->
 <script>
 (function(){
-  // --- Download CSV din JSON injectat ---
+  /* -----------------------------
+     Persistență selecție (localStorage)
+  ------------------------------*/
+  const STORAGE_KEY = 'slskd-selected';
+
+  function getSelectedFromStorage(){
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
+    catch(_) { return []; }
+  }
+
+  function saveSelection(){
+    const selected = Array.from(document.querySelectorAll('.sel'))
+      .filter(cb => cb.checked)
+      .map(cb => cb.getAttribute('data-query'));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(selected));
+  }
+
+  function restoreSelection(){
+    const saved = getSelectedFromStorage();
+    document.querySelectorAll('.sel').forEach(cb => {
+      const q = cb.getAttribute('data-query');
+      if (saved.includes(q)) cb.checked = true;
+    });
+  }
+
+  /* -----------------------------
+     Filtru în timp real
+  ------------------------------*/
+  const filterBox = document.getElementById('filterBox');
+  const tracklist = document.getElementById('tracklist');
+
+  function applyFilter(){
+    if(!filterBox || !tracklist) return;
+    const term = filterBox.value.trim().toLowerCase();
+    tracklist.querySelectorAll('li').forEach(li => {
+      const t = li.dataset.title || '';
+      const a = li.dataset.artists || '';
+      const q = li.dataset.query || '';
+      li.style.display = (t.includes(term) || a.includes(term) || q.includes(term)) ? 'flex' : 'none';
+    });
+  }
+
+  if(filterBox){ filterBox.addEventListener('input', applyFilter); }
+
+  /* -----------------------------
+     Select All / Clear All
+  ------------------------------*/
+  const btnSelAll = document.getElementById('selectAllBtn');
+  const btnClrAll = document.getElementById('clearAllBtn');
+
+  if(btnSelAll){
+    btnSelAll.addEventListener('click', ()=>{
+      tracklist.querySelectorAll('.sel:not(:disabled)').forEach(cb => cb.checked = true);
+      saveSelection();
+    });
+  }
+  if(btnClrAll){
+    btnClrAll.addEventListener('click', ()=>{
+      tracklist.querySelectorAll('.sel:not(:disabled)').forEach(cb => cb.checked = false);
+      saveSelection();
+    });
+  }
+
+  /* -----------------------------
+     Download CSV (din DOM)
+  ------------------------------*/
   const btnDownload = document.getElementById('downloadCsvBtn');
-  if (btnDownload) {
-    btnDownload.addEventListener('click', function(){
-      const el = document.getElementById('tracks-data');
-      if(!el){ alert('Nu există date pentru export. Încarcă CSV.'); return; }
-      const tracks = JSON.parse(el.textContent || '[]');
-      if(!Array.isArray(tracks) || !tracks.length){ alert('Nu există piese.'); return; }
+  if(btnDownload){
+    btnDownload.addEventListener('click', ()=>{
+      const rows = Array.from(document.querySelectorAll('.tracklist li .meta')).map(meta => {
+        const title = meta.querySelector('.title')?.textContent?.trim() || '';
+        const artists = meta.querySelector('.artists')?.textContent?.trim() || '';
+        const query = artists ? (artists + ' - ' + title) : title;
+        return [title, artists, query];
+      });
+      if(!rows.length){ alert('Nu există piese.'); return; }
 
       const header = ['Track Name','Artist Name(s)','Query'];
-      const rows = [header];
-      for(const t of tracks){
-        const title = (t.title || '').toString();
-        const artists = (t.artists || '').toString();
-        const query = (t.query || (artists ? (artists + ' - ' + title) : title)).toString();
-        rows.push([title, artists, query]);
-      }
-      const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\r\n');
+      const all = [header, ...rows];
+      const csv = all.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\r\n');
+
       const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
       const url  = URL.createObjectURL(blob);
       const a    = document.createElement('a');
       a.href = url; a.download = 'playlist_curent.csv';
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a);
       URL.revokeObjectURL(url);
     });
   }
 
-  // --- Select All / Clear All ---
-  const tracklist = document.getElementById('tracklist');
-  const btnSelAll = document.getElementById('selectAllBtn');
-  const btnClrAll = document.getElementById('clearAllBtn');
-  if (btnSelAll && tracklist) {
-    btnSelAll.addEventListener('click', () => {
-      tracklist.querySelectorAll('input.sel:not(:disabled)').forEach(cb => cb.checked = true);
-    });
-  }
-  if (btnClrAll && tracklist) {
-    btnClrAll.addEventListener('click', () => {
-      tracklist.querySelectorAll('input.sel:not(:disabled)').forEach(cb => cb.checked = false);
-    });
-  }
-
-  // --- Caută selectate (10 sec interval) ---
+  /* -----------------------------
+     Batch: Caută selectate (10s)
+  ------------------------------*/
   const btnBatch = document.getElementById('searchSelectedBtn');
   const statusEl = document.getElementById('batchStatus');
-  if (btnBatch && tracklist) {
-    btnBatch.addEventListener('click', async () => {
-      const cbs = Array.from(tracklist.querySelectorAll('input.sel:checked'))
+
+  if(btnBatch){
+    btnBatch.addEventListener('click', async ()=>{
+      const cbs = Array.from(tracklist.querySelectorAll('.sel:checked'))
                        .filter(cb => !cb.disabled);
-      if (!cbs.length) { alert('Selectează cel puțin o melodie.'); return; }
+
+      if(!cbs.length){ alert('Selectează cel puțin o melodie.'); return; }
 
       btnBatch.disabled = true;
-      const oneBtns = tracklist.querySelectorAll('.one-search-btn');
-      oneBtns.forEach(b => b.disabled = true);
-
       const intervalMs = 10000; // 10 secunde
       let idx = 0;
 
-      for (const cb of cbs) {
+      for(const cb of cbs){
         const li = cb.closest('li');
-        const q  = cb.value;
+        const q  = cb.getAttribute('data-query') || '';
         statusEl.textContent = `Trimit ${idx+1}/${cbs.length} ...`;
 
-        try {
-          const body = new URLSearchParams({ q });
+        try{
           const resp = await fetch('/slskd/search', {
             method: 'POST',
             headers: { 'Content-Type':'application/x-www-form-urlencoded' },
-            body
+            body: new URLSearchParams({ q })
           });
           const json = await resp.json();
-          if (json && json.ok) {
-            // marchează ca „trimis”
+          if(json && json.ok){
             cb.disabled = true;
-            // schimbă butonul în ✔️ dacă există
-            const xroot = li.__x ? li.__x.$data : null; // Alpine intern (dacă e disponibil)
-            if (xroot && typeof xroot.searched !== 'undefined') {
-              xroot.searched = true;
-            } else {
-              // fallback: înlătură butonul și adaugă ✔️
-              const btn = li.querySelector('.one-search-btn');
-              if (btn) btn.remove();
-              const mark = document.createElement('span');
-              mark.textContent = '✔️';
-              mark.style.cssText = 'color:#34d399; font-size:1.1rem; font-weight:700;';
-              li.lastElementChild.appendChild(mark);
-            }
-          } else {
-            console.warn('Eroare slskd pentru', q, json);
+            cb.checked  = true;
+            saveSelection();
+
+            // marchează vizual ca „trimis”
+            const btn = li.querySelector('.one-search-btn');
+            if(btn) btn.remove();
+            const mark = document.createElement('span');
+            mark.textContent = '✔️';
+            mark.style.cssText = 'color:#34d399; font-size:1.1rem; font-weight:700;';
+            li.lastElementChild.appendChild(mark);
           }
-        } catch (e) {
+        }catch(e){
           console.error('Network error pentru', q, e);
         }
 
         idx++;
-        if (idx < cbs.length) {
-          // așteaptă 10s între apeluri
+        if(idx < cbs.length){
           await new Promise(r => setTimeout(r, intervalMs));
         }
       }
 
       statusEl.textContent = 'Gata.';
+      setTimeout(()=> statusEl.textContent = '', 3000);
       btnBatch.disabled = false;
-      oneBtns.forEach(b => b.disabled = false);
-      setTimeout(() => { statusEl.textContent = ''; }, 3000);
     });
   }
+
+  /* -----------------------------
+     Init la load
+  ------------------------------*/
+  restoreSelection();
+  applyFilter();
+  document.addEventListener('change', e => {
+    if(e.target && e.target.classList && e.target.classList.contains('sel')) saveSelection();
+  });
 })();
 </script>
 
