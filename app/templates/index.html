@@ -18,15 +18,23 @@
 
   <hr style="border:none;border-top:1px solid #22304b;margin:1rem 0"/>
 
-  <!-- Upload CSV -->
-  <form action="/upload" method="POST" enctype="multipart/form-data" style="margin:0;">
-    <label for="playlist_file" style="white-space:nowrap; margin-right:.25rem;">CSV din Exportify:</label>
-    <input type="file" id="playlist_file" name="playlist_file" accept=".csv,text/csv" />
-    <button type="submit"
-            style="padding:.5rem .8rem; border:1px solid #334155; border-radius:.5rem; background:#1f2a44; color:#e6eefc; cursor:pointer;">
-      Încarcă playlist
-    </button>
-  </form>
+<!-- =============== Upload CSV din Exportify =============== -->
+/upload
+
+  <label for="playlist_file" style="white-space:nowrap;">CSV din Exportify:</label>
+
+  <input type="file"
+         id="playlist_file"
+         name="playlist_file"
+         accept=".csv,text/csv"
+         style="padding:.25rem; background:#0e1726; color:#e6eefc; border:1px solid #334155; border-radius:.25rem;" />
+
+  <button type="submit"
+          style="padding:.5rem .8rem; border:1px solid #334155; border-radius:.5rem;
+                 background:#1f2a44; color:#e6eefc; cursor:pointer;">
+    Încarcă playlist
+  </button>
+</form>
 </section>
 
 {% if error %}
