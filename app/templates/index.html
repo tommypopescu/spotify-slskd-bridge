@@ -16,22 +16,21 @@
   </p>
 
   <hr style="border:none;border-top:1px solid #22304b;margin:1rem 0"/>
-<!-- =============== Upload CSV (FORMULAR CORECT) =============== -->
-<form action="/upload" method="POST" enctype="multipart/form-data" style="margin:0;">
-  <label for="playlist_file" style="white-space:nowrap; margin-right:.25rem;">CSV din Exportify:</label>
 
-  <input type="file"
-         id="playlist_file"
-         name="playlist_file"
-         accept=".csv,text/csv"
-         style="padding:.35rem .5rem; border:1px solid #334155; border-radius:.35rem; background:#0e1726; color:#e6eefc;"
-         required />
-
-  <button type="submit"
-          style="padding:.5rem .8rem; border:1px solid #334155; border-radius:.5rem; background:#1f2a44; color:#e6eefc; cursor:pointer;">
-    Încarcă playlist
-  </button>
-</form>
+  <!-- =============== Upload CSV (FORMULAR CORECT) =============== -->
+  /upload
+    <label for="playlist_file" style="white-space:nowrap; margin-right:.25rem;">CSV din Exportify:</label>
+    <input type="file"
+           id="playlist_file"
+           name="playlist_file"
+           accept=".csv,text/csv"
+           style="padding:.35rem .5rem; border:1px solid #334155; border-radius:.35rem; background:#0e1726; color:#e6eefc;"
+           required />
+    <button type="submit"
+            style="padding:.5rem .8rem; border:1px solid #334155; border-radius:.5rem; background:#1f2a44; color:#e6eefc; cursor:pointer;">
+      Încarcă playlist
+    </button>
+  </form>
 </section>
 
 {% if error %}
@@ -39,7 +38,7 @@
 {% endif %}
 
 {% if tracks and not error %}
-  <!-- JSON-ul nu este obligatoriu pentru funcționalitate, dar îl putem folosi la export -->
+  <!-- JSON opțional (util la export) -->
   <script id="tracks-data" type="application/json">
     {{ tracks | tojson }}
   </script>
@@ -53,7 +52,7 @@
            placeholder="Filtrează piese (titlu / artiști / query)…"
            style="padding:.35rem .6rem; border:1px solid #334155; border-radius:.4rem; background:#0e1726; color:#e6eefc; min-width:260px;" />
 
-    <!-- Descarcă CSV (lista curentă) -->
+    <!-- Descarcă CSV -->
     <button id="downloadCsvBtn"
             style="padding:.35rem .6rem; border:1px solid #334155; border-radius:.4rem; background:#1f2a44; color:#e6eefc; cursor:pointer;">
       Descarcă CSV
@@ -88,7 +87,10 @@
         style="padding:.55rem 0; border-bottom:1px solid #334155; display:flex; align-items:center; gap:.6rem;">
 
       <!-- Checkbox -->
-      <input type="checkbox" class="sel" data-query="{{ t.query }}"
+      <input type="checkbox"
+             class="sel"
+             data-query="{{ t.query|e }}"
+             value="{{ t.query|e }}"
              style="transform:translateY(1px);" />
 
       <!-- Text melodie -->
@@ -106,20 +108,19 @@
         <template x-if="!searched">
           <button
             class="one-search-btn"
-            data-q="{{ t.query }}"
             style="padding:.3rem .55rem; border:1px solid #334155; border-radius:.4rem; background:#1f2a44; color:#e6eefc; cursor:pointer;"
             @click="
               fetch('/slskd/search', {
                 method: 'POST',
                 headers: { 'Content-Type':'application/x-www-form-urlencoded' },
-                body: new URLSearchParams({ q: '{{ t.query }}' })
+                body: new URLSearchParams({ q: {{ t.query|tojson }} })   <!-- folosim |tojson ca să scăpăm de apostroafe -->
               })
               .then(r => r.json())
               .then(j => {
                 if (j.ok) {
                   searched = true;
                   const cb = $el.closest('li').querySelector('.sel');
-                  if (cb) { cb.checked = true; cb.disabled = true; saveSelection(); }
+                  if (cb) { cb.checked = true; cb.disabled = true; window.saveSelection(); }
                 } else {
                   alert('Eroare slskd: ' + (j.detail || 'necunoscută'));
                 }
@@ -141,35 +142,30 @@
 
 <!-- =============== Scripturi =============== -->
 <script>
+/* Facem funcțiile GLOBALE: sunt apelate din expresii Alpine/inline */
+window.SLSKD_SEL_STORAGE_KEY = 'slskd-selected';
+
+window.getSelectedFromStorage = function(){
+  try { return JSON.parse(localStorage.getItem(window.SLSKD_SEL_STORAGE_KEY) || '[]'); }
+  catch(_) { return []; }
+}
+
+window.saveSelection = function(){
+  const selected = Array.from(document.querySelectorAll('.sel'))
+    .filter(cb => cb.checked)
+    .map(cb => cb.getAttribute('data-query') || cb.value);
+  localStorage.setItem(window.SLSKD_SEL_STORAGE_KEY, JSON.stringify(selected));
+}
+
+window.restoreSelection = function(){
+  const saved = window.getSelectedFromStorage();
+  document.querySelectorAll('.sel').forEach(cb => {
+    const q = cb.getAttribute('data-query') || cb.value;
+    if (saved.includes(q)) cb.checked = true;
+  });
+}
+
 (function(){
-  /* -----------------------------
-     Persistență selecție (localStorage)
-  ------------------------------*/
-  const STORAGE_KEY = 'slskd-selected';
-
-  function getSelectedFromStorage(){
-    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
-    catch(_) { return []; }
-  }
-
-  function saveSelection(){
-    const selected = Array.from(document.querySelectorAll('.sel'))
-      .filter(cb => cb.checked)
-      .map(cb => cb.getAttribute('data-query') || cb.value);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(selected));
-  }
-
-  function restoreSelection(){
-    const saved = getSelectedFromStorage();
-    document.querySelectorAll('.sel').forEach(cb => {
-      const q = cb.getAttribute('data-query') || cb.value;
-      if (saved.includes(q)) cb.checked = true;
-    });
-  }
-
-  /* -----------------------------
-     Elemente UI frecvente
-  ------------------------------*/
   const filterBox = document.getElementById('filterBox');
   const tracklist = document.getElementById('tracklist');
   const btnDownload = document.getElementById('downloadCsvBtn');
@@ -178,9 +174,7 @@
   const btnBatch = document.getElementById('searchSelectedBtn');
   const statusEl = document.getElementById('batchStatus');
 
-  /* -----------------------------
-     Filtru în timp real
-  ------------------------------*/
+  // Filtru live
   function applyFilter(){
     if(!filterBox || !tracklist) return;
     const term = filterBox.value.trim().toLowerCase();
@@ -193,9 +187,7 @@
   }
   if(filterBox){ filterBox.addEventListener('input', applyFilter); }
 
-  /* -----------------------------
-     Download CSV (din DOM)
-  ------------------------------*/
+  // Download CSV (din DOM)
   if(btnDownload){
     btnDownload.addEventListener('click', ()=>{
       const rows = Array.from(document.querySelectorAll('.tracklist li .meta')).map(meta => {
@@ -220,27 +212,23 @@
     });
   }
 
-  /* -----------------------------
-     Select All / Clear All
-  ------------------------------*/
+  // Select all / clear all
   if(btnSelAll){
     btnSelAll.addEventListener('click', ()=>{
       if(!tracklist) return;
       tracklist.querySelectorAll('.sel:not(:disabled)').forEach(cb => cb.checked = true);
-      saveSelection();
+      window.saveSelection();
     });
   }
   if(btnClrAll){
     btnClrAll.addEventListener('click', ()=>{
       if(!tracklist) return;
       tracklist.querySelectorAll('.sel:not(:disabled)').forEach(cb => cb.checked = false);
-      saveSelection();
+      window.saveSelection();
     });
   }
 
-  /* -----------------------------
-     Batch: Caută selectate (10s)
-  ------------------------------*/
+  // Batch: Caută selectate (10s)
   if(btnBatch){
     btnBatch.addEventListener('click', async ()=>{
       if(!tracklist) return;
@@ -250,14 +238,14 @@
       if(!cbs.length){ alert('Selectează cel puțin o melodie.'); return; }
 
       btnBatch.disabled = true;
-      const intervalMs = 10000; // 10 secunde
+      const intervalMs = 10000; // 10s
       let idx = 0;
 
       for(const cb of cbs){
         const li = cb.closest('li');
         const q  = cb.getAttribute('data-query') || cb.value || '';
 
-        statusEl && (statusEl.textContent = `Trimit ${idx+1}/${cbs.length} ...`);
+        if(statusEl) statusEl.textContent = `Trimit ${idx+1}/${cbs.length} ...`;
 
         try{
           const resp = await fetch('/slskd/search', {
@@ -269,7 +257,7 @@
           if(json && json.ok){
             cb.disabled = true;
             cb.checked  = true;
-            saveSelection();
+            window.saveSelection();
 
             // marchează vizual ca „trimis”
             const btn = li.querySelector('.one-search-btn');
@@ -289,22 +277,19 @@
         }
       }
 
-      statusEl && (statusEl.textContent = 'Gata.');
+      if(statusEl) statusEl.textContent = 'Gata.';
       setTimeout(()=> { if(statusEl){ statusEl.textContent = ''; }}, 3000);
       btnBatch.disabled = false;
     });
   }
 
-  /* -----------------------------
-     Init la load
-  ------------------------------*/
-  restoreSelection();
+  // Init
+  window.restoreSelection();
   applyFilter();
 
-  // Salvează selecția când utilizatorul bifează/debifează
   document.addEventListener('change', e => {
     if(e.target && e.target.classList && e.target.classList.contains('sel')){
-      saveSelection();
+      window.saveSelection();
     }
   });
 })();
