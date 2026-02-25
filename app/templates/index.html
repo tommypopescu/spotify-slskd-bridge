@@ -155,60 +155,47 @@
   function saveSelection(){
     const selected = Array.from(document.querySelectorAll('.sel'))
       .filter(cb => cb.checked)
-      .map(cb => cb.getAttribute('data-query'));
+      .map(cb => cb.getAttribute('data-query') || cb.value);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(selected));
   }
 
   function restoreSelection(){
     const saved = getSelectedFromStorage();
     document.querySelectorAll('.sel').forEach(cb => {
-      const q = cb.getAttribute('data-query');
+      const q = cb.getAttribute('data-query') || cb.value;
       if (saved.includes(q)) cb.checked = true;
     });
   }
 
   /* -----------------------------
-     Filtru în timp real
+     Elemente UI frecvente
   ------------------------------*/
   const filterBox = document.getElementById('filterBox');
   const tracklist = document.getElementById('tracklist');
+  const btnDownload = document.getElementById('downloadCsvBtn');
+  const btnSelAll = document.getElementById('selectAllBtn');
+  const btnClrAll = document.getElementById('clearAllBtn');
+  const btnBatch = document.getElementById('searchSelectedBtn');
+  const statusEl = document.getElementById('batchStatus');
 
+  /* -----------------------------
+     Filtru în timp real
+  ------------------------------*/
   function applyFilter(){
     if(!filterBox || !tracklist) return;
     const term = filterBox.value.trim().toLowerCase();
     tracklist.querySelectorAll('li').forEach(li => {
-      const t = li.dataset.title || '';
-      const a = li.dataset.artists || '';
-      const q = li.dataset.query || '';
+      const t = (li.dataset.title || '').toLowerCase();
+      const a = (li.dataset.artists || '').toLowerCase();
+      const q = (li.dataset.query || '').toLowerCase();
       li.style.display = (t.includes(term) || a.includes(term) || q.includes(term)) ? 'flex' : 'none';
     });
   }
-
   if(filterBox){ filterBox.addEventListener('input', applyFilter); }
-
-  /* -----------------------------
-     Select All / Clear All
-  ------------------------------*/
-  const btnSelAll = document.getElementById('selectAllBtn');
-  const btnClrAll = document.getElementById('clearAllBtn');
-
-  if(btnSelAll){
-    btnSelAll.addEventListener('click', ()=>{
-      tracklist.querySelectorAll('.sel:not(:disabled)').forEach(cb => cb.checked = true);
-      saveSelection();
-    });
-  }
-  if(btnClrAll){
-    btnClrAll.addEventListener('click', ()=>{
-      tracklist.querySelectorAll('.sel:not(:disabled)').forEach(cb => cb.checked = false);
-      saveSelection();
-    });
-  }
 
   /* -----------------------------
      Download CSV (din DOM)
   ------------------------------*/
-  const btnDownload = document.getElementById('downloadCsvBtn');
   if(btnDownload){
     btnDownload.addEventListener('click', ()=>{
       const rows = Array.from(document.querySelectorAll('.tracklist li .meta')).map(meta => {
@@ -234,13 +221,29 @@
   }
 
   /* -----------------------------
+     Select All / Clear All
+  ------------------------------*/
+  if(btnSelAll){
+    btnSelAll.addEventListener('click', ()=>{
+      if(!tracklist) return;
+      tracklist.querySelectorAll('.sel:not(:disabled)').forEach(cb => cb.checked = true);
+      saveSelection();
+    });
+  }
+  if(btnClrAll){
+    btnClrAll.addEventListener('click', ()=>{
+      if(!tracklist) return;
+      tracklist.querySelectorAll('.sel:not(:disabled)').forEach(cb => cb.checked = false);
+      saveSelection();
+    });
+  }
+
+  /* -----------------------------
      Batch: Caută selectate (10s)
   ------------------------------*/
-  const btnBatch = document.getElementById('searchSelectedBtn');
-  const statusEl = document.getElementById('batchStatus');
-
   if(btnBatch){
     btnBatch.addEventListener('click', async ()=>{
+      if(!tracklist) return;
       const cbs = Array.from(tracklist.querySelectorAll('.sel:checked'))
                        .filter(cb => !cb.disabled);
 
@@ -252,8 +255,9 @@
 
       for(const cb of cbs){
         const li = cb.closest('li');
-        const q  = cb.getAttribute('data-query') || '';
-        statusEl.textContent = `Trimit ${idx+1}/${cbs.length} ...`;
+        const q  = cb.getAttribute('data-query') || cb.value || '';
+
+        statusEl && (statusEl.textContent = `Trimit ${idx+1}/${cbs.length} ...`);
 
         try{
           const resp = await fetch('/slskd/search', {
@@ -285,8 +289,8 @@
         }
       }
 
-      statusEl.textContent = 'Gata.';
-      setTimeout(()=> statusEl.textContent = '', 3000);
+      statusEl && (statusEl.textContent = 'Gata.');
+      setTimeout(()=> { if(statusEl){ statusEl.textContent = ''; }}, 3000);
       btnBatch.disabled = false;
     });
   }
@@ -296,8 +300,12 @@
   ------------------------------*/
   restoreSelection();
   applyFilter();
+
+  // Salvează selecția când utilizatorul bifează/debifează
   document.addEventListener('change', e => {
-    if(e.target && e.target.classList && e.target.classList.contains('sel')) saveSelection();
+    if(e.target && e.target.classList && e.target.classList.contains('sel')){
+      saveSelection();
+    }
   });
 })();
 </script>
